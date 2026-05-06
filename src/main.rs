@@ -78,6 +78,9 @@ fn build_templates() -> Environment<'static> {
     env.add_template("new.html", include_str!("../templates/new.html"))
         .unwrap();
 
+    env.add_template("update.html", include_str!("../templates/update.html"))
+        .unwrap();
+
     env
 }
 
@@ -197,6 +200,85 @@ async fn get_bookmark(State(state): State<AppState>, Path(id): Path<u64>) -> Res
     }
 }
 
+///delete
+async fn delete(State(state): State<AppState>, Path(id): Path<u64>) -> Response {
+    let _ = sqlx::query("DELETE FROM bookmark_tag WHERE bookmark_id = ?")
+        .bind(id as i64)
+        .execute(&state.store)
+        .await;
+    
+    let result = sqlx::query("DELETE FROM bookmark WHERE id = ?")
+        .bind(id as i64)
+        .execute(&state.store)
+        .await;
+
+    match result {
+        Ok(_) => Redirect::to(&format!("/bookmarks")).into_response(),
+        Err(_) => database_error(),
+    }
+}
+
+///update
+async fn update(State(state): State<AppState>, Path(id): Path<u64>) -> Response { 
+    match get_bookmark_from_id(&state.store, id).await {
+        Err(_) => database_error(),
+        Ok(Some(bm)) => render(&state.templates, "update.html", context! {bookmark => bm }),
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            render(&state.templates, "404.html", context! {}),
+        )   
+            .into_response(),
+    }
+}
+
+async fn update_post(
+    State(state): State<AppState>, 
+    Path(id): Path<u64>,
+    Form(form): Form<CreateBookmarkForm>,
+) -> Response {
+    let result = sqlx::query("UPDATE bookmark SET title = ?, url = ? WHERE id = ?")
+        .bind(&form.title)
+        .bind(&form.url)
+        .bind(id as i64)
+        .execute(&state.store)
+        .await;
+
+    if result.is_err() {
+        return database_error();
+    }
+
+    let _ = sqlx::query("DELETE FROM bookmark_tag WHERE bookmark_id = ?")
+        .bind(id as i64)
+        .execute(&state.store)
+        .await;
+
+    let tags: Vec<String> = form
+        .tags
+        .unwrap_or_default()
+        .split(',')
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+        .collect();
+
+    for tag in tags {
+        let _ = sqlx::query("INSERT OR IGNORE INTO tag (name) VALUES (?)")
+            .bind(&tag)
+            .execute(&state.store)
+            .await;
+
+        let _ = sqlx::query(
+            "INSERT OR IGNORE INTO bookmark_tag (bookmark_id, tag_id)
+             SELECT ?, id FROM tag WHERE name = ?"
+        )
+        .bind(id as i64)
+        .bind(&tag)
+        .execute(&state.store)
+        .await;
+    }
+
+    Redirect::to(&format!("/bookmarks")).into_response()
+}
+
 // helper for creating a bookmark, returns the ID
 async fn create_bookmark_impl(
     pool: &SqlitePool,
@@ -264,6 +346,8 @@ fn build_router(state: AppState) -> Router {
         .route("/bookmarks", get(list_bookmarks).post(create_bookmark))
         .route("/bookmarks/new", get(new_bookmark_form))
         .route("/bookmarks/{id}", get(get_bookmark))
+        .route("/bookmarks/{id}/delete", get(delete))
+        .route("/bookmarks/{id}/update", get(update).post(update_post))
         .with_state(state)
 }
 

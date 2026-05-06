@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Update {{ bookmark.title}}{% endblock %}
+{% block content %}
+  <h1>Update bookmark</h1>
+  <form method="post" action="/bookmarks/{{ bookmark.id }}/update">
+    <p>
+      <label>
+        Title<br><input type="text" name="title" required value="{{ bookmark.title }}" size="60">
+      </label>
+    </p>
+    <p>
+      <label>
+        URL<br><input type="url" name="url" required value="{{ bookmark.url }}" size="60">
+      </label>
+    </p>
+    <p>
+      <label>
+        Tags (comma-separated)<br><input type="text" name="tags" value="{{ bookmark.tags | join(', ') }}" size="60">
+      </label>
+    </p>
+    <p><button type="submit">Save</button></p>
+  </form>
+{% endblock %}
