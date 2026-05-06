@@ -7,4 +7,12 @@
     <dt>URL</dt>   <dd><a href="{{ bookmark.url }}">{{ bookmark.url }}</a></dd>
     <dt>Tags</dt>  <dd>{{ bookmark.tags | join(", ") if bookmark.tags else "-" }}</dd>
   </dl>
+  {% if is_owner %}
+  <hr>
+  <p><a href="/bookmarks/{{ bookmark.id }}/edit">Edit</a> |
+     <form method="post" action="/bookmarks/{{ bookmark.id }}/delete" style="display:inline">
+       <button type="submit">Delete</button>
+     </form>
+  </p>
+  {% endif %}
 {% endblock %}

@@ -2,7 +2,16 @@
 <html>
 <head><meta charset="utf-8"><title>{% block title %}Bookmarks{% endblock %}</title></head>
 <body>
-  <nav><a href="/bookmarks">All bookmarks</a> | <a href="/bookmarks/new">+ New</a></nav>
+  <nav>
+    <a href="/bookmarks">All bookmarks</a>
+    {% if user %}
+      | <a href="/bookmarks/new">+ New</a>
+      | <a href="/logout">Logout ({{ user.username }})</a>
+    {% else %}
+      | <a href="/login">Login</a>
+      | <a href="/register">Register</a>
+    {% endif %}
+  </nav>
   <hr>
   {% block content %}{% endblock %}
 </body>
